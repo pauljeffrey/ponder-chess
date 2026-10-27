@@ -14,7 +14,7 @@ chessagent/losses.py   policy / value / line-decoder losses
 chessagent/train.py    supervised pretraining loop
 chessagent/rl.py       GRPO against the multi-PV analysis stored in the dataset
 chessagent/engine.py   inference: policy -> variations -> leaf values -> decision
-server/app.py          FastAPI (/api/move, /api/health) + static web UI
+server/app.py          FastAPI (/api/move, /api/move/stream, /api/health) + static web UI
 web/                   the game interface (chess.js for rules)
 ```
 

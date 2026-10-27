@@ -76,7 +76,8 @@ class Engine:
     def analyse(self, board: chess.Board, level: int = 4, k: int | None = None, depth: int | None = None,
                 temperature: float | None = None, line_weight: float = 0.25, seed: int | None = None,
                 loops: int | None = None, branch: int = 1, lookahead: bool = True,
-                rollout: str = "policy") -> dict:
+                rollout: str = "policy", progress=None) -> dict:
+        """progress: optional callback(dict) fed with the variations as they grow, one call per ply of look-ahead."""
         t0 = time.perf_counter()
         lv = LEVELS[max(1, min(5, level))]
         k = k or lv.k
@@ -84,6 +85,8 @@ class Engine:
         temperature = lv.temperature if temperature is None else temperature
         loops = loops or lv.loops
         branch = max(1, branch)
+        if rollout == "decoder" and not self.model.cfg.has_decoder:
+            raise ValueError("this model has no line decoder: use rollout='policy'")
         gen = torch.Generator().manual_seed(seed) if seed is not None else None
 
         root, flipped = to_root_frame(board)
@@ -101,10 +104,12 @@ class Engine:
         cand_idx = top.indices.tolist()
         cand_logp = top.values.tolist()
 
+        def real(idx: int) -> chess.Move:
+            m = index_to_move(idx)
+            return mirror_move(m) if flipped else m
+
         if not lookahead:      # instinct only: the policy head decides, no decoder, no board re-encoding
-            def real0(idx: int) -> chess.Move:
-                m = index_to_move(idx)
-                return mirror_move(m) if flipped else m
+            real0 = real
             z = torch.tensor(cand_logp)
             pick = int(torch.multinomial(torch.softmax(z / temperature, -1), 1, generator=gen)) if temperature > 0 else 0
             ev = root_score if board.turn == chess.WHITE else 1.0 - root_score
@@ -120,8 +125,35 @@ class Engine:
         #         each continued greedily to `depth` plies ----------------------------------------------------------
         from .rl import softmin, tree_boards     # lazy: rl imports this module
         first = torch.tensor(cand_idx, dtype=torch.long, device=self.device)
+        nb_eff = branch if (branch > 1 and depth >= 2) else 1
+        root_ev = root_score if board.turn == chess.WHITE else 1.0 - root_score
+        last_emit = [0.0]
+
+        def line_san(idxs):
+            b, out = board.copy(stack=False), []
+            for idx in idxs:
+                mv = real(idx)
+                out.append(b.san(mv))
+                b.push(mv)
+            return out
+
+        def on_ply(bs, ls):      # stream the variations as they grow (leaf scores follow once the lines are complete)
+            now = time.perf_counter()
+            if progress is None or (now - last_emit[0] < 0.05 and len(ls[0]) < depth and len(ls[0]) > 1):
+                return
+            last_emit[0] = now
+            cp = []
+            for i in range(k):
+                brs = []
+                for r in range(nb_eff):
+                    ln = line_san(ls[i * nb_eff + r])
+                    if not any(b["line"] == ln for b in brs):
+                        brs.append(dict(line=ln, score_white=None, critical=False))
+                cp.append(dict(san=brs[0]["line"][0], prior=math.exp(cand_logp[i]), score_white=None, line=brs[0]["line"], branches=brs))
+            progress(dict(partial=True, candidates=cp, chosen=-1, root_eval_white=root_ev, lookahead=True, ms=None))
+
         boards, lines, bvalid = tree_boards(self.model, mem.expand(k, -1, -1), [root] * k, first, depth, branch, loops,
-                                          policy=rollout == "policy")
+                                          policy=rollout == "policy", on_ply=on_ply if progress else None)
         nb = bvalid.shape[1]
 
         # ---- 3. evaluate leaves (root mover's expected score): the encoder re-reads each end position -----------------
@@ -156,10 +188,6 @@ class Engine:
             pick = int(z.argmax())
 
         # ---- 5. package (convert back to the real board's frame) ------------------------------
-        def real(idx: int) -> chess.Move:
-            m = index_to_move(idx)
-            return mirror_move(m) if flipped else m
-
         cands = []
         for i in range(k):
             branches = []

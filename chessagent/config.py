@@ -15,6 +15,7 @@ class ModelConfig:
     n_pv: int = 4           # candidate lines per position
     enc_loops: int = 1      # max times the encoder stack (everything above the embedding) is re-applied; no new params
     dec_loops: int = 1      # same for the line decoder
+    has_decoder: bool = True  # False: encoder-only model (the deployed form: the look-ahead replays the policy head on a real board)
     loop_embed: bool = False  # True: add a learned per-pass vector (Universal-Transformer style, +d_model*loops params)
 
     def to_dict(self) -> dict:

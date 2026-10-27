@@ -141,7 +141,7 @@ def rewards(first, tokens, illegal, pv_moves, pv_cp, line_reward: float = 0.5, l
 
 
 @torch.no_grad()
-def _extend(model: ChessNet, memory: torch.Tensor, boards, lines, plies: int, loops=None):
+def _extend(model: ChessNet, memory: torch.Tensor, boards, lines, plies: int, loops=None, on_ply=None):
     """Extend legal greedy variations in place by `plies` moves (boards already carry `lines`)."""
     for _ in range(plies):
         alive = [i for i, b in enumerate(boards) if not b.is_game_over()]
@@ -153,6 +153,8 @@ def _extend(model: ChessNet, memory: torch.Tensor, boards, lines, plies: int, lo
         for i, idx in zip(alive, dec.argmax(-1).tolist()):
             boards[i].push(index_to_move(idx))
             lines[i].append(idx)
+        if on_ply:
+            on_ply(boards, lines)
 
 
 @torch.no_grad()
@@ -179,7 +181,7 @@ def _policy_moves(model: ChessNet, boards, loops=None, topn: int = 1):
     return out
 
 
-def _extend_policy(model: ChessNet, boards, lines, plies: int, loops=None):
+def _extend_policy(model: ChessNet, boards, lines, plies: int, loops=None, on_ply=None):
     for _ in range(plies):
         alive = [i for i, b in enumerate(boards) if not b.is_game_over()]
         if not alive:
@@ -187,32 +189,36 @@ def _extend_policy(model: ChessNet, boards, lines, plies: int, loops=None):
         for i, mv in zip(alive, _policy_moves(model, [boards[i] for i in alive], loops)):
             boards[i].push(index_to_move(mv[0]))
             lines[i].append(mv[0])
+        if on_ply:
+            on_ply(boards, lines)
 
 
 @torch.no_grad()
 def greedy_boards(model: ChessNet, memory: torch.Tensor, boards: list[chess.Board], first: torch.Tensor, depth: int,
-                  loops=None, policy: bool = False):
+                  loops=None, policy: bool = False, on_ply=None):
     """Legal greedy variations (as at inference) -> the board at the end of each line."""
     boards = [b.copy(stack=False) for b in boards]
     lines = [[int(f)] for f in first]
     for b, f in zip(boards, lines):
         b.push(index_to_move(f[0]))
+    if on_ply:
+        on_ply(boards, lines)
     if policy:
-        _extend_policy(model, boards, lines, depth - 1, loops)
+        _extend_policy(model, boards, lines, depth - 1, loops, on_ply)
     else:
-        _extend(model, memory, boards, lines, depth - 1, loops)
+        _extend(model, memory, boards, lines, depth - 1, loops, on_ply)
     return boards, lines
 
 
 @torch.no_grad()
 def tree_boards(model: ChessNet, memory: torch.Tensor, boards, first: torch.Tensor, depth: int, branch: int, loops=None,
-                policy: bool = False):
+                policy: bool = False, on_ply=None):
     """Per root move: the decoder's top-`branch` replies, each continued greedily to `depth` plies.
 
     Returns (leaf boards [N*branch], lines, valid [N, branch]); with branch = 1 this is greedy_boards."""
     N = len(boards)
     if branch <= 1 or depth < 2:
-        bs, ls = greedy_boards(model, memory, boards, first, depth, loops, policy)
+        bs, ls = greedy_boards(model, memory, boards, first, depth, loops, policy, on_ply)
         return bs, ls, torch.ones(N, 1, dtype=torch.bool, device=memory.device)
     bd = [b.copy(stack=False) for b in boards]
     for b, f in zip(bd, first.tolist()):
@@ -242,10 +248,12 @@ def tree_boards(model: ChessNet, memory: torch.Tensor, boards, first: torch.Tens
                 out_b[e], out_l[e], valid[i, 0] = bd[i].copy(stack=False), [int(first[i])], True
             else:                                            # fewer legal replies than `branch`: masked placeholder
                 out_b[e], out_l[e] = out_b[i * branch].copy(stack=False), list(out_l[i * branch])
+    if on_ply:
+        on_ply(out_b, out_l)
     if policy:
-        _extend_policy(model, out_b, out_l, depth - 2, loops)
+        _extend_policy(model, out_b, out_l, depth - 2, loops, on_ply)
     else:
-        _extend(model, memory.repeat_interleave(branch, 0), out_b, out_l, depth - 2, loops)
+        _extend(model, memory.repeat_interleave(branch, 0), out_b, out_l, depth - 2, loops, on_ply)
     return out_b, out_l, valid.to(memory.device)
 
 

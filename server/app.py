@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import threading
 from pathlib import Path
 
 import chess
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -99,8 +101,7 @@ def health():
     return dict(ok=True, trained=eng.trained, params=eng.model.num_params(), model=m["id"])
 
 
-@app.post("/api/move")
-def move(req: MoveRequest):
+def _checked_board(req: MoveRequest) -> chess.Board:
     try:
         board = chess.Board(req.fen)
     except ValueError:
@@ -110,12 +111,52 @@ def move(req: MoveRequest):
     cost = (req.k or 4) * req.branch * (req.depth or 8)
     if req.lookahead and cost > MAX_COST:
         raise HTTPException(400, f"that search is too large for this server ({cost} imagined moves, limit {MAX_COST}): lower the candidates, depth or replies")
+    return board
+
+
+def _search(req: MoveRequest, board: chess.Board, progress=None) -> dict:
     with lock:
         m, eng = get_engine(req.model)
-        res = eng.analyse(board, level=req.level, k=req.k, depth=req.depth, branch=req.branch, lookahead=req.lookahead)
+        try:
+            res = eng.analyse(board, level=req.level, k=req.k, depth=req.depth, branch=req.branch,
+                              lookahead=req.lookahead, progress=progress)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
     res["model"] = m["id"]
     res["model_label"] = m["label"]
     return res
+
+
+@app.post("/api/move")
+def move(req: MoveRequest):
+    return _search(req, _checked_board(req))
+
+
+@app.post("/api/move/stream")
+def move_stream(req: MoveRequest):
+    """Same search as /api/move, as newline-delimited JSON: one {"partial": ...} event per ply of look-ahead
+    (the variations as they grow), then {"done": true, "result": ...} (or {"error": ...})."""
+    board = _checked_board(req)
+    q: queue.Queue = queue.Queue()
+
+    def work():
+        try:
+            q.put(dict(done=True, result=_search(req, board, progress=q.put)))
+        except HTTPException as e:
+            q.put(dict(error=e.detail))
+        except Exception as e:
+            q.put(dict(error=f"{type(e).__name__}: {e}"))
+
+    threading.Thread(target=work, daemon=True).start()
+
+    def gen():
+        while True:
+            ev = q.get()
+            yield json.dumps(ev) + "\n"
+            if ev.get("done") or ev.get("error"):
+                return
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 app.mount("/", StaticFiles(directory=ROOT / "web", html=True), name="web")

@@ -83,11 +83,12 @@ function setEval(whiteScore) {
   $("evalText").textContent = (human === "w" ? pct : 100 - pct) + "%";
 }
 let lastRes = null, lastCtx = null, openIdx = null;
+function showPartial(res, ctx) { lastRes = res; lastCtx = ctx; drawThoughts(); }   // variations growing, scores still to come
 function showThoughts(res, ctx) { lastRes = res; lastCtx = ctx; openIdx = res.chosen; drawThoughts(); }
 function drawThoughts() {
   const res = lastRes, ctx = lastCtx; if (!res) return;
   const who = ctx.turn === "w" ? "White" : "Black";
-  $("thinkMs").textContent = `${res.ms} ms`;
+  $("thinkMs").textContent = res.ms == null ? "calculating…" : `${res.ms} ms`;
   const rootPct = Math.round((ctx.turn === "w" ? res.root_eval_white : 1 - res.root_eval_white) * 100);
   $("thinkMeta").innerHTML =
     `<span>${ctx.analysing ? "Analysis for" : "Move for"} <b>${who}</b></span><span><b>${res.candidates.length}</b> candidates</span>` +
@@ -102,21 +103,22 @@ function drawThoughts() {
       return html;
     }).join(" ");
   };
-  const pctOf = (w) => Math.round((ctx.turn === "w" ? w : 1 - w) * 100);
+  const pctOf = (w) => (w == null ? null : Math.round((ctx.turn === "w" ? w : 1 - w) * 100));
+  const pcTxt = (w) => (w == null ? "…" : pctOf(w) + "%");
   el.thoughts.classList.toggle("dense", res.candidates.length > 6);
   el.thoughts.innerHTML = res.candidates.map((c, i) => {
-    const pct = pctOf(c.score_white), prior = Math.round(c.prior * 100);
+    const pct = pctOf(c.score_white) ?? 0, calc = c.score_white == null, prior = Math.round(c.prior * 100);
     const br = c.branches || [{ line: c.line, score_white: c.score_white, critical: true }];
     const many = br.length > 1, open = i === openIdx;
     const crit = br.find((b) => b.critical) || br[0];
     const body = open && many
       ? `<div class="bnote">${br.length} replies explored. Its worth is the reply that is worst for ${who} (highlighted).</div>` +
-        br.map((b) => `<div class="bl ${b.critical ? "crit" : ""}"><div class="ln">${fmtLine(b.line)}</div><span class="bs">${pctOf(b.score_white)}%</span></div>`).join("")
+        br.map((b) => `<div class="bl ${b.critical ? "crit" : ""}"><div class="ln">${fmtLine(b.line)}</div><span class="bs">${pcTxt(b.score_white)}</span></div>`).join("")
       : `<div class="ln">${fmtLine(crit.line)}</div>`;
-    return `<div class="cand ${i === res.chosen ? "pick" : ""} ${open ? "open" : ""}" data-i="${i}">
+    return `<div class="cand ${i === res.chosen ? "pick" : ""} ${open ? "open" : ""} ${calc ? "calc" : ""}" data-i="${i}">
       <div class="h"><i class="rk">${i + 1}</i><b>${c.san}</b>${i === res.chosen ? '<em class="tag">chosen</em>' : ""}${many && !open ? `<span class="more">+${br.length - 1} replies</span>` : ""}
         <div class="mini" title="how good the position looks after this line"><i style="width:${pct}%"></i></div>
-        <span class="prior" title="how much the AI liked this move at first glance">${prior}%</span><span class="pc">${pct}%</span></div>
+        <span class="prior" title="how much the AI liked this move at first glance">${prior}%</span><span class="pc">${calc ? "…" : pct + "%"}</span></div>
       ${body}</div>`;
   }).join("");
 }
@@ -124,16 +126,32 @@ el.thoughts.addEventListener("click", (e) => {
   const c = e.target.closest(".cand"); if (!c) return;
   const i = +c.dataset.i; openIdx = openIdx === i ? null : i; drawThoughts();
 });
+async function callEngine(ctx, onPartial) {
+  const r = await fetch(API + "/api/move/stream", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fen: game.fen(), level: ctx.level, k: ctx.k, depth: ctx.depth, branch: ctx.branch, lookahead: ctx.look, model: modelId() }) });
+  if (!r.ok) throw new Error((await r.json()).detail || r.status);
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = "", result = null;
+  for (;;) {
+    const { value, done } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    for (let i; (i = buf.indexOf("\n")) >= 0;) {
+      const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line) continue;
+      const ev = JSON.parse(line);
+      if (ev.error) throw new Error(ev.error);
+      if (ev.done) result = ev.result; else if (onPartial) onPartial(ev);
+    }
+  }
+  if (!result) throw new Error("the server closed the connection");
+  return result;
+}
 const searchCtx = (analysing) => ({ turn: game.turn(), fullmove: +game.fen().split(" ")[5], k: +$("kSlider").value,
   depth: +$("dSlider").value, branch: +$("bSlider").value, level: +$("level").value, look: $("lookahead").checked, analysing });
 async function analyseNow() {
   if (busy || game.game_over()) return;
   busy = true; el.think.hidden = false; const my = ++token; const ctx = searchCtx(true);
   try {
-    const r = await fetch(API + "/api/move", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fen: game.fen(), level: ctx.level, k: ctx.k, depth: ctx.depth, branch: ctx.branch, lookahead: ctx.look, model: modelId() }) });
-    if (!r.ok) throw new Error((await r.json()).detail || r.status);
-    const res = await r.json();
+    const res = await callEngine(ctx, (ev) => { if (my === token) showPartial(ev, ctx); });
     if (my === token) showThoughts(res, ctx);
   } catch (e) { toast("AI error: " + e.message); }
   finally { if (my === token) { busy = false; el.think.hidden = true; render(); } }
@@ -200,10 +218,7 @@ async function aiMove() {
   const my = ++token; busy = true; el.think.hidden = false; el.status.textContent = "";
   const ctx = searchCtx(false);
   try {
-    const r = await fetch(API + "/api/move", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fen: game.fen(), level: +$("level").value, k: +$("kSlider").value, depth: +$("dSlider").value, branch: +$("bSlider").value, lookahead: $("lookahead").checked, model: modelId() }) });
-    if (!r.ok) throw new Error((await r.json()).detail || r.status);
-    const res = await r.json();
+    const res = await callEngine(ctx, (ev) => { if (my === token) showPartial(ev, ctx); });
     if (my !== token) return;                       // game was reset / undone meanwhile
     const mv = game.move({ from: res.move.slice(0, 2), to: res.move.slice(2, 4), promotion: res.move[4] });
     if (!mv) throw new Error("server returned an illegal move: " + res.move);

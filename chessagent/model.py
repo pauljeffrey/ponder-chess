@@ -130,7 +130,8 @@ class ChessNet(nn.Module):
         # optional (cfg.loop_embed): one learned vector per pass; the parameter-free default re-applies the stack as is
         if cfg.loop_embed:
             self.enc_loop_emb = nn.Embedding(cfg.enc_loops, d)
-            self.dec_loop_emb = nn.Embedding(cfg.dec_loops, d)
+            if cfg.has_decoder:
+                self.dec_loop_emb = nn.Embedding(cfg.dec_loops, d)
         self.register_buffer("rel_index", _rel_index(), persistent=False)
 
         # --- value head (win / draw / loss for the side to move) --------------
@@ -146,11 +147,12 @@ class ChessNet(nn.Module):
         self.register_buffer("promo_idx", torch.tensor(PROMO_IDX), persistent=False)
 
         # --- line decoder -----------------------------------------------------
-        self.move_emb = nn.Embedding(VOCAB_SIZE, d)    # also used (tied) as the output projection
-        self.ply_emb = nn.Embedding(cfg.max_line_len, d)
-        self.dec_layers = nn.ModuleList(DecoderLayer(cfg) for _ in range(cfg.dec_layers))
-        self.dec_norm = nn.LayerNorm(d)
-        self.dec_bias = nn.Parameter(torch.zeros(VOCAB_SIZE))
+        if cfg.has_decoder:
+            self.move_emb = nn.Embedding(VOCAB_SIZE, d)    # also used (tied) as the output projection
+            self.ply_emb = nn.Embedding(cfg.max_line_len, d)
+            self.dec_layers = nn.ModuleList(DecoderLayer(cfg) for _ in range(cfg.dec_layers))
+            self.dec_norm = nn.LayerNorm(d)
+            self.dec_bias = nn.Parameter(torch.zeros(VOCAB_SIZE))
 
         self.apply(self._init)
 
@@ -205,6 +207,8 @@ class ChessNet(nn.Module):
         memory [B,66,d]; line_in [B,T] vocab ids (m1..mT, all >= 0) -> logits [B,T,V]
         where logits[:, t] is the distribution of move t+2 (the move after line_in[:, t]).
         """
+        if not self.cfg.has_decoder:
+            raise RuntimeError("this model was exported without its line decoder")
         T = line_in.shape[1]
         pos = torch.arange(T, device=line_in.device).clamp_max(self.cfg.max_line_len - 1)   # past the trained length: reuse the last slot
         x = self.move_emb(line_in) + self.ply_emb(pos)[None]
