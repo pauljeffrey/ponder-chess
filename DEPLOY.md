@@ -15,7 +15,7 @@ python scripts/export_weights.py runs/box/<checkpoint>.pt weights/ponder-64m.pt 
 (public, or private with a token), then give the backend the base URL:
 
 ```
-PONDER_WEIGHTS_BASE=https://huggingface.co/<user>/<repo>/resolve/main
+PONDER_WEIGHTS_BASE=https://huggingface.co/BeardedMonster/ponder/resolve/main
 HF_TOKEN=...            # only if the repo is private
 ```
 

@@ -1,32 +1,20 @@
 [
   {
-    "id": "pretrain",
-    "label": "Pretrained",
-    "desc": "Learned by studying millions of positions analysed by Stockfish. No reinforcement learning.",
-    "path": "runs/box/final52k.pt"
+    "id": "ponder-32m",
+    "label": "Ponder 32M",
+    "desc": "Learned by studying tens of millions of positions analysed by Stockfish. No reinforcement learning.",
+    "path": "weights/ponder-32m.pt"
   },
   {
-    "id": "rl",
-    "label": "RL fine-tuned",
-    "desc": "The pretrained model, then trained using reinforcement learning to choose between its own variations and calculations.",
-    "path": "runs/box/rl.pt"
+    "id": "ponder-32m-rl",
+    "label": "Ponder 32M · RL",
+    "desc": "The 32M model, then trained using reinforcement learning to choose between its own variations and calculations.",
+    "path": "weights/ponder-32m-rl.pt"
   },
   {
-    "id": "pretrain2",
-    "label": "Pretrained (more data)",
-    "desc": "The pretrained model after studying twice as many analysed positions. No reinforcement learning.",
-    "path": "runs/box/pretrain2.pt"
-  },
-  {
-    "id": "rl_v4",
-    "label": "RL fine-tuned v4",
-    "desc": "The more-data model, then trained using reinforcement learning to choose between its own variations and calculations, with each line checked against Stockfish's.",
-    "path": "runs/box/rl_v4.pt"
-  },
-  {
-    "id": "large",
+    "id": "ponder-64m",
     "label": "Ponder 64M",
     "desc": "A model twice the size, trained on all 35 million analysed positions. The strongest one.",
-    "path": "runs/box/large_final.pt"
+    "path": "weights/ponder-64m.pt"
   }
 ]
