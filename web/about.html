@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Ponder works</title>
+<link rel="stylesheet" href="style.css?v=8">
+<style>
+body{height:auto;overflow:auto}
+.doc{position:relative;max-width:820px;margin:0 auto;padding:36px 18px 80px}
+.doc h1{font-size:40px;margin:6px 0 4px;letter-spacing:.01em}
+.doc .lead{font-size:18px;color:var(--muted);margin:0 0 26px;max-width:640px}
+.doc h2{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin:38px 0 12px}
+.doc p{margin:0 0 12px;max-width:680px}
+.back{color:var(--accent);text-decoration:none;font-size:14px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:8px 0 6px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.step i{font-style:normal;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#1b1305;font-weight:700;font-size:13px}
+.step b{display:block;margin:8px 0 4px;font-size:16px}.step span{color:var(--muted);font-size:13.5px}
+.demo{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:14px;margin:12px 0}
+.demo .mv{padding:0 5px;border-radius:5px}.demo .first{background:var(--accent);color:#14161e;font-weight:600}.demo .opp{color:#9aa0b0}
+.demo .row2{display:flex;gap:10px;align-items:baseline;margin:4px 0}.demo .row2 small{color:var(--muted);margin-left:auto}
+dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:10px 16px;max-width:700px}dt{font-weight:600}dd{margin:0;color:var(--muted)}
+.note{border-left:3px solid var(--accent);padding:2px 0 2px 14px;color:var(--muted);max-width:680px}
+.cta{display:inline-block;margin-top:26px;text-decoration:none}
+@media (max-width:560px){dl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="backdrop"></div>
+<article class="doc">
+  <a class="back" href="./">← Back to the game</a>
+  <h1>Ponder</h1>
+  <p class="lead">A chess AI that doesn't just pick the move that looks good. It imagines how the game could unfold, then chooses the move whose futures look best.</p>
+
+  <h2>How it thinks</h2>
+  <div class="steps">
+    <div class="step"><i>1</i><b>Look</b><span>It reads the whole board at once: where every piece stands and whose turn it is.</span></div>
+    <div class="step"><i>2</i><b>Suggest</b><span>From a first glance it shortlists the moves that look most promising: its instinct.</span></div>
+    <div class="step"><i>3</i><b>Calculate</b><span>For each shortlisted move it plays out a variation on a real board: its move, the reply it expects, its next move, and so on, re-reading the board after every move.</span></div>
+    <div class="step"><i>4</i><b>Judge and decide</b><span>It looks at where each line ends and asks "who is better here?". It plays the move whose future looks best.</span></div>
+  </div>
+  <div class="demo">
+    <div class="row2"><span><span class="mv first">Nf3</span> <span class="mv opp">d5</span> d4 <span class="mv opp">Nf6</span> e3 <span class="mv opp">Bf5</span></span><small>ends 55% for White</small></div>
+    <div class="row2"><span><span class="mv first">e4</span> <span class="mv opp">e5</span> Nf3 <span class="mv opp">Nc6</span> Bb5 <span class="mv opp">a6</span></span><small>ends 58% for White</small></div>
+    <div class="row2" style="color:var(--muted)">Two of the variations Ponder might weigh, shown the way the game shows them.</div>
+  </div>
+  <p>The opponent gets a say too. For each of its moves, Ponder can consider several replies and assumes you will choose the one that is worst for it. A move only counts as good if it holds up against your best answer.</p>
+  <p>Every variation it calculates appears next to the board while it plays, so you can watch what it is weighing and click any candidate to see all the replies it explored.</p>
+
+  <h2>What the sliders change</h2>
+  <dl>
+    <dt>Candidate moves</dt><dd>How many different first moves it works out a full line for. At 1 it simply trusts its first instinct.</dd>
+    <dt>Depth</dt><dd>How many half-moves each line runs before it judges the position. Deeper lines see further ahead, but every extra move is another guess, so longer lines are not always better.</dd>
+    <dt>Replies per move</dt><dd>How many different answers it considers for each of its moves. More replies mean it is harder to trick.</dd>
+    <dt>Strength</dt><dd>Presets of the above. Lower levels also sometimes choose a less obvious move on purpose, so they play more like a person.</dd>
+  </dl>
+
+  <h2>How it learned</h2>
+  <p><b>First, it studied.</b> Ponder was shown millions of chess positions that the Stockfish engine had already analysed. From them it learned to suggest strong moves and to tell who is winning, and it was also shown the lines Stockfish expected to follow.</p>
+  <p><b>Then, it practised.</b> In the second stage it used reinforcement learning: it picks between its own variations and its own calculations, and is rewarded when its choice, the lines it imagines and its judgement of the final position agree with Stockfish's analysis. This is what teaches it to calculate carefully rather than just recognise good-looking moves.</p>
+  <p>In the game you can play either version: <b>Pretrained</b> (the first stage only) or <b>RL fine-tuned</b> (after the practice stage).</p>
+
+  <h2>Honest limits</h2>
+  <h2>Watch it play Stockfish</h2>
+  <p>Switch the mode to <b>Watch Ponder vs Stockfish</b> to see the two play each other. Stockfish runs right in your browser, and you can set its strength from club level up to full power, and how long it thinks per move. Stockfish is free software (GPL v3); the copy bundled here is unmodified Stockfish 19 compiled to WebAssembly.</p>
+  <p class="note">Ponder is small and learns from examples, so it is not a search engine like Stockfish. It can imagine a line that is wrong, and it judges the end of a line by feel, not by exhaustive calculation. It has no official rating; the only way to know how strong it is, is to play it.</p>
+
+  <h2>Why "Ponder"?</h2>
+  <p>In chess engines, to <i>ponder</i> is to think ahead during the opponent's turn. That is the whole idea here: spend the effort imagining the future before committing to a move.</p>
+  <a class="btn primary cta" href="./">Play Ponder</a>
+</article>
+</body>
+</html>

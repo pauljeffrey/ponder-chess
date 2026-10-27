@@ -1,0 +1,13 @@
+.venv/
+data/
+runs/
+__pycache__/
+*.pyc
+.pytest_cache/
+.claude/
+.DS_Store
+# model weights are large: they live on Hugging Face / the server, not in git (see DEPLOY.md)
+weights/*.pt
+weights/*.part
+!weights/.gitkeep
+scripts/sync_box.sh

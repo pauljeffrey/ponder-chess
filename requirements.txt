@@ -1,0 +1,9 @@
+torch>=2.2
+numpy
+python-chess
+zstandard
+fastapi
+uvicorn[standard]
+pydantic
+pytest
+httpx

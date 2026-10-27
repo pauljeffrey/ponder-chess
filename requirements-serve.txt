@@ -1,0 +1,5 @@
+numpy
+python-chess
+fastapi
+uvicorn[standard]
+pydantic

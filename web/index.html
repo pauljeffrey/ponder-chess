@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ponder</title>
+<link rel="stylesheet" href="style.css?v=10">
+</head>
+<body>
+<div class="backdrop"></div>
+<main class="app">
+  <aside class="side">
+    <div class="brand"><h1>Ponder</h1><a class="about" href="about.html">How it works</a></div>
+    <p class="tag">A chess AI that thinks in variations.</p>
+    <label class="modesel">Mode
+      <select id="mode"><option value="play">Play against Ponder</option><option value="watch">Watch Ponder vs Stockfish</option></select>
+    </label>
+    <div class="modelbox">
+      <label id="oppLabel">Opponent
+        <select id="model"></select>
+      </label>
+      <div class="mdesc" id="modelDesc"></div>
+      <div class="mbadge" id="modelBadge"></div>
+    </div>
+    <div class="row">
+      <label><span id="sideLabel">Play as</span>
+        <select id="side"><option value="w">White</option><option value="b">Black</option><option value="r">Random</option></select>
+      </label>
+      <label>Strength
+        <select id="level">
+          <option value="1">1 · Casual</option><option value="2">2 · Club</option><option value="3">3 · Sharp</option>
+          <option value="4" selected>4 · Strong</option><option value="5">5 · Max</option>
+        </select>
+      </label>
+    </div>
+    <div class="cfg" id="watchbox" hidden>
+      <div class="cfgh">Stockfish <small id="sfNote">runs in your browser</small></div>
+      <label class="tog"><input type="checkbox" id="sfFull"><span>Full strength</span></label>
+      <label><span>Strength (Elo) <b id="sfEloVal">1800</b></span><input type="range" id="sfElo" min="1320" max="3190" step="10" value="1800"></label>
+      <label><span>Thinking time per move <b id="sfMsVal">0.8 s</b></span><input type="range" id="sfMs" min="100" max="5000" step="100" value="800"></label>
+      <button class="btn" id="pauseBtn">Pause</button>
+    </div>
+    <div class="cfg">
+      <div class="cfgh">How hard it thinks <small id="cfgNote">preset</small></div>
+      <label class="tog" title="On: the AI imagines lines with its decoder, plays them out on a real chess board, and the encoder re-reads each final position to judge it before it picks a move. Off: it plays its first instinct."><input type="checkbox" id="lookahead" checked><span>Look-ahead (imagine lines, then judge them)</span></label>
+      <label title="How many different first moves the AI works out a full line for. 1 = trust its first instinct."><span>Candidate moves <b id="kVal">4</b></span>
+        <input type="range" id="kSlider" min="1" max="25" value="4">
+      </label>
+      <label title="How many half-moves each line runs before the AI judges the resulting position. Lines longer than 8 plies go beyond what it was trained on."><span>Depth of each line (plies) <b id="dVal">6</b></span>
+        <input type="range" id="dSlider" min="1" max="32" value="6">
+      </label>
+      <label title="How many different replies the AI considers for each of its moves. It assumes you pick the reply that is worst for it."><span>Replies per move <b id="bVal">1</b></span>
+        <input type="range" id="bSlider" min="1" max="10" value="1">
+      </label>
+      <div class="cost" id="cost"></div>
+    </div>
+    <div class="row btns">
+      <button class="btn primary" id="newBtn">New game</button>
+      <button class="btn" id="undoBtn" title="Take back your last move">Undo</button>
+      <button class="btn" id="redoBtn" title="Replay the move you took back">Redo</button>
+      <button class="btn" id="analyseBtn" title="Show what the AI thinks of this position, without moving">Analyse</button>
+      <button class="btn" id="flipBtn">Flip</button>
+      <button class="btn" id="tiltBtn">3D</button>
+      <button class="btn" id="soundBtn">Sound</button>
+    </div>
+    <h3>Moves</h3>
+    <ol class="moves" id="moves"></ol>
+  </aside>
+
+  <section class="stage">
+    <div class="player top"><span class="avatar" id="topAvatar">♞</span><div><b id="topName">Ponder</b><small id="topCaps"></small></div><span class="status" id="status"></span></div>
+    <div class="board-wrap">
+      <div class="evalbar" title="How good the position looks for White"><div class="evalfill" id="evalFill"></div><span id="evalText">50%</span></div>
+      <div class="board-perspective">
+        <div class="board" id="board"></div>
+        <div class="promo" id="promo" hidden></div>
+        <div class="thinking" id="thinking" hidden><span></span><span></span><span></span><em>thinking…</em></div>
+        <div class="modal" id="modal" hidden><div class="card"><h2 id="modalTitle"></h2><p id="modalText"></p><button id="modalBtn" class="btn primary">Play again</button></div></div>
+      </div>
+    </div>
+    <div class="player bottom"><span class="avatar" id="botAvatar">♙</span><div><b id="botName">You</b><small id="botCaps"></small></div></div>
+  </section>
+
+  <aside class="think">
+    <h3>What Ponder is thinking <small id="thinkMs"></small></h3>
+    <div class="thinkmeta" id="thinkMeta"></div>
+    <div class="thoughts" id="thoughts"><p class="muted">Candidate moves and the variations it calculated will appear here. Click a candidate to see every reply it explored.</p></div>
+  </aside>
+</main>
+<div class="toast" id="toast" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js?v=9"></script>
+</body>
+</html>
