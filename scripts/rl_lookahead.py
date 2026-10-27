@@ -25,6 +25,7 @@ def main():
     ap.add_argument("--beta", type=float, default=0.02)
     ap.add_argument("--w-sup", type=float, default=0.2)
     ap.add_argument("--w-match", type=float, default=1.0)
+    ap.add_argument("--match-final", type=float, default=0.3, help="the match weight tapers linearly to this fraction")
     ap.add_argument("--w-leaf", type=float, default=1.0)
     ap.add_argument("--w-calc", type=float, default=1.0)
     ap.add_argument("--w-dec", type=float, default=1.0)
@@ -37,7 +38,8 @@ def main():
     cfg = TrainConfig(data_dir=a.data, out_dir=a.out, steps=a.steps, batch_size=a.batch_size, lr=a.lr, device=a.device,
                       num_workers=a.workers, log_every=a.log_every)
     lookahead_rl(cfg, a.ckpt, group=a.group, k=a.k, depth=a.depth, beta=a.beta, w_sup=a.w_sup, w_match=a.w_match,
-                 w_leaf=a.w_leaf, w_calc=a.w_calc, w_dec=a.w_dec, temperature=a.temperature, save_every=a.save_every)
+                 w_leaf=a.w_leaf, w_calc=a.w_calc, w_dec=a.w_dec, temperature=a.temperature, save_every=a.save_every,
+                 match_final=a.match_final)
 
 
 if __name__ == "__main__":

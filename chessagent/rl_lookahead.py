@@ -11,7 +11,8 @@ policy gradient; this is on-policy so there is no ratio to clip) with a KL leash
 
 Rewards (per ply unless noted):
   match   +1/depth for each ply that still equals the stored Stockfish line of that root move (prefix match, so a
-          line is rewarded for its length *and* order, for both colours)
+          line is rewarded for its length *and* order, for both colours). Only the first 8 plies are stored, and the
+          weight tapers over training so the policy is held to Stockfish's judgements, not forced to copy its moves
   leaf    (terminal) -|leaf score - stored score| when the whole line stayed on the stored line: the encoder must
           judge the end of a Stockfish line the way Stockfish does
   calc    (terminal, every line of a candidate) the candidate's soft-min leaf value should equal the stored score of
@@ -107,7 +108,8 @@ def sup_losses(model, batch, temp_cp: float):
 def lookahead_rl(cfg: TrainConfig, init_ckpt: str, group: int = 2, k: int = 4, depth: int = 5, beta: float = 0.02,
                  w_sup: float = 0.2, w_match: float = 1.0, w_leaf: float = 1.0, w_calc: float = 1.0, w_dec: float = 1.0,
                  temperature: float = 1.0, tau: float = 0.1, line_weight: float = 0.25, micro: int = 256,
-                 sup_bs: int = 64, pv_aug: float = 0.5, warmup: int = 30, save_every: int = 250) -> Path:
+                 sup_bs: int = 64, pv_aug: float = 0.5, warmup: int = 30, save_every: int = 250,
+                 match_final: float = 0.3) -> Path:
     torch.manual_seed(cfg.seed)
     random.seed(cfg.seed)
     device = pick_device(cfg.device)
@@ -122,7 +124,7 @@ def lookahead_rl(cfg: TrainConfig, init_ckpt: str, group: int = 2, k: int = 4, d
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     out_dir, t0 = Path(cfg.out_dir), time.time()
     print(f"[la-rl] {len(ds)} positions | {model.num_params() / 1e6:.1f}M params | k={k} group={group} depth<={depth} "
-          f"beta={beta} device={device}", flush=True)
+          f"beta={beta} match {w_match}->{match_final} device={device}", flush=True)
 
     for step in range(1, cfg.steps + 1):
         for g in opt.param_groups:
@@ -131,6 +133,7 @@ def lookahead_rl(cfg: TrainConfig, init_ckpt: str, group: int = 2, k: int = 4, d
         boards = _root_boards(batch)
         B = len(boards)
         d = random.randint(2, depth)
+        wm = w_match * (1.0 - (1.0 - match_final) * (step - 1) / max(1, cfg.steps - 1))   # taper: copy Stockfish less over time
         pvm, pvc = batch["pv_moves"].cpu(), batch["pv_cp"].cpu()
         S = cp_to_score(pvc)                                                         # [B,K] stored score, mover's view
 
@@ -162,7 +165,7 @@ def lookahead_rl(cfg: TrainConfig, init_ckpt: str, group: int = 2, k: int = 4, d
             for t, mv in enumerate(lines[i]):
                 if t < len(P) and mv == P[t] and n == t:
                     n += 1
-                    tok_r[i][t] += w_match / d
+                    tok_r[i][t] += wm / d
                 else:
                     break
             stats["match"].append(n / len(lines[i]))
