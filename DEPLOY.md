@@ -38,7 +38,9 @@ On start the container downloads any missing file into `/app/weights`; mount a v
 `--strip-decoder` drops the line decoder (a third of the parameters), which the deployed look-ahead does not use: the
 look-ahead replays the policy head on a real board, and the page shows the variations growing live
 (`POST /api/move/stream`, newline-delimited JSON). A stripped 32M model is ~44 MB on disk and ~90 MB in RAM, a
-stripped 64M model ~85 MB on disk and ~170 MB in RAM, so all models fit comfortably on a shared machine.
+stripped 64M model ~85 MB on disk and ~170 MB in RAM. The server keeps only one model in memory: when a request
+asks for another model it loads that one and frees the previous one, unless another user is still searching with the
+previous one (then both stay until that search ends). `/api/models` and `/api/health` never load weights.
 
 ## 3. Frontend on Vercel
 
