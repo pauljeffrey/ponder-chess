@@ -1,6 +1,6 @@
 /* Ponder web UI. Rules/legality: chess.js. Moves for the AI: POST /api/move (FastAPI). */
 (() => {
-const API = new URLSearchParams(location.search).get("api") || window.PONDER_API || "";
+const API = (new URLSearchParams(location.search).get("api") || window.PONDER_API || "").replace(/\/+$/, "");
 const GLYPH = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
 const $ = (id) => document.getElementById(id);
 const el = { board: $("board"), moves: $("moves"), thoughts: $("thoughts"), status: $("status"), think: $("thinking"),

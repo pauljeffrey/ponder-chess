@@ -1,0 +1,5 @@
+{
+  "buildCommand": "echo \"window.PONDER_API = '$PONDER_API';\" > config.js",
+  "outputDirectory": ".",
+  "framework": null
+}
