@@ -14,7 +14,13 @@
   {
     "id": "ponder-64m",
     "label": "Ponder 64M",
-    "desc": "A model twice the size, trained on all 35 million analysed positions. The strongest one.",
+    "desc": "A model twice the size, trained on all 35 million analysed positions and on the lines Stockfish expected to follow. The strongest one.",
     "path": "weights/ponder-64m.pt"
+  },
+  {
+    "id": "ponder-64m-rl",
+    "label": "Ponder 64M · RL",
+    "desc": "The 64M model, then trained with reinforcement learning on its own look-ahead lines and on games against Stockfish. Plays about as well as the plain 64M in our tests.",
+    "path": "weights/ponder-64m-rl.pt"
   }
 ]
