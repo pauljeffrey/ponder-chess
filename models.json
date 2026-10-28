@@ -1,26 +1,26 @@
 [
   {
-    "id": "ponder-32m",
-    "label": "Ponder 32M",
-    "desc": "Learned by studying tens of millions of positions analysed by Stockfish. No reinforcement learning.",
-    "path": "weights/ponder-32m.pt"
+    "id": "ponder-knight",
+    "label": "Ponder Knight · 22M",
+    "desc": "The compact model (22M parameters). Learned by studying tens of millions of positions analysed by Stockfish. No reinforcement learning.",
+    "path": "weights/ponder-knight.pt"
   },
   {
-    "id": "ponder-32m-rl",
-    "label": "Ponder 32M · RL",
-    "desc": "The 32M model, then trained using reinforcement learning to choose between its own variations and calculations.",
-    "path": "weights/ponder-32m-rl.pt"
+    "id": "ponder-knight-rl",
+    "label": "Ponder Knight · 22M · RL",
+    "desc": "The Knight, then trained using reinforcement learning to choose between its own variations and calculations.",
+    "path": "weights/ponder-knight-rl.pt"
   },
   {
-    "id": "ponder-64m",
-    "label": "Ponder 64M",
-    "desc": "A model twice the size, trained on all 35 million analysed positions and on the lines Stockfish expected to follow. The strongest one.",
-    "path": "weights/ponder-64m.pt"
+    "id": "ponder-rook",
+    "label": "Ponder Rook · 42M",
+    "desc": "Twice the size of the Knight (42M parameters), trained on all 35 million analysed positions and on the lines Stockfish expected to follow. The strongest one.",
+    "path": "weights/ponder-rook.pt"
   },
   {
-    "id": "ponder-64m-rl",
-    "label": "Ponder 64M · RL",
-    "desc": "The 64M model, then trained with reinforcement learning on its own look-ahead lines and on games against Stockfish. Plays about as well as the plain 64M in our tests.",
-    "path": "weights/ponder-64m-rl.pt"
+    "id": "ponder-rook-rl",
+    "label": "Ponder Rook · 42M · RL",
+    "desc": "The Rook, then trained with reinforcement learning on its own look-ahead lines and on games against Stockfish. Plays about as well as the plain Rook in our tests.",
+    "path": "weights/ponder-rook-rl.pt"
   }
 ]

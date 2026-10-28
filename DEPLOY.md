@@ -8,7 +8,7 @@ Model weights are too large for git (up to ~128 MB each), so they live outside t
 Export slim fp16 files and put them where the server can fetch them:
 
 ```bash
-python scripts/export_weights.py runs/box/<checkpoint>.pt weights/ponder-64m.pt --strip-decoder   # repeat per model
+python scripts/export_weights.py runs/box/<checkpoint>.pt weights/ponder-rook.pt --strip-decoder   # repeat per model
 ```
 
 `models.json` lists the files the server expects (`weights/<name>.pt`). Upload them to a Hugging Face model repo
@@ -37,8 +37,8 @@ On start the container downloads any missing file into `/app/weights`; mount a v
 
 `--strip-decoder` drops the line decoder (a third of the parameters), which the deployed look-ahead does not use: the
 look-ahead replays the policy head on a real board, and the page shows the variations growing live
-(`POST /api/move/stream`, newline-delimited JSON). A stripped 32M model is ~44 MB on disk and ~90 MB in RAM, a
-stripped 64M model ~85 MB on disk and ~170 MB in RAM. The server keeps only one model in memory: when a request
+(`POST /api/move/stream`, newline-delimited JSON). A stripped Knight (22M) is ~44 MB on disk and ~90 MB in RAM, a
+stripped Rook (42M) ~85 MB on disk and ~170 MB in RAM. The server keeps only one model in memory: when a request
 asks for another model it loads that one and frees the previous one, unless another user is still searching with the
 previous one (then both stay until that search ends). `/api/models` and `/api/health` never load weights.
 

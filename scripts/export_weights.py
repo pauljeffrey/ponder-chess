@@ -1,6 +1,6 @@
 """Slim a training checkpoint into a deployable weights file (fp16 on disk, loaded back as fp32 by load_checkpoint).
 
-    python scripts/export_weights.py runs/box/large_final.pt weights/ponder-64m.pt [--strip-decoder]
+    python scripts/export_weights.py runs/box/large_final.pt weights/ponder-rook.pt [--strip-decoder]
 
 --strip-decoder drops the line decoder (about a third of the parameters): the deployed look-ahead only needs the
 encoder, because it replays the policy head on a real board.

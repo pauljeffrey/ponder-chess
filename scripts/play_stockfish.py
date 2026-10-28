@@ -1,6 +1,6 @@
 """Gauntlet: Ponder vs Stockfish at several nominal Elo levels. Writes a summary and the games.
 
-    python scripts/play_stockfish.py --ckpt weights/ponder-64m.pt --elos 1500,1800,2100,2400 --games 20 --depth 6
+    python scripts/play_stockfish.py --ckpt weights/ponder-rook.pt --elos 1500,1800,2100,2400 --games 20 --depth 6
 """
 import argparse
 import json
